@@ -14,6 +14,10 @@ from ortools.sat.python import cp_model
 Point = tuple[int, int]
 
 
+class UnsupportedInstanceError(ValueError):
+    """A valid instance lies outside the exact oracle's supported scope."""
+
+
 @dataclass(frozen=True)
 class Bounds:
     left: int
@@ -36,7 +40,7 @@ def rectangle_bounds(xs: list[int], ys: list[int], label: str) -> Bounds:
     ))
     # The instance schema already validates polygon simplicity and rectilinearity.
     if bounds.area <= 0 or twice_area != 2 * bounds.area:
-        raise ValueError(f"{label} must be an axis-aligned rectangle")
+        raise UnsupportedInstanceError(f"{label} must be an axis-aligned rectangle")
     return bounds
 
 
@@ -58,9 +62,9 @@ def build_grid(
     if max_positions < 1 or max_cells < 1:
         raise ValueError("Grid limits must be positive")
     if instance.number_of_cutters != 1:
-        raise ValueError("The oracle requires exactly one cutter")
+        raise UnsupportedInstanceError("The oracle requires exactly one cutter")
     if instance.region_to_cover.inner_boundaries:
-        raise ValueError("The lawn must not contain holes")
+        raise UnsupportedInstanceError("The lawn must not contain holes")
     boundary = instance.region_to_cover.outer_boundary
     lawn = rectangle_bounds(boundary.x, boundary.y, "Lawn")
     shape = rectangle_bounds(instance.cutter.x, instance.cutter.y, "Cutter")
@@ -68,13 +72,13 @@ def build_grid(
     cutter = Bounds(shape.left - cx, shape.bottom - cy, shape.right - cx, shape.top - cy)
 
     if lawn.area > max_cells:
-        raise ValueError(f"Lawn has {lawn.area} cells; limit is {max_cells}")
+        raise UnsupportedInstanceError(f"Lawn has {lawn.area} cells; limit is {max_cells}")
     # Exactly the integer placements with positive-area intersection with the lawn.
     x_min, x_max = lawn.left - cutter.right + 1, lawn.right - cutter.left - 1
     y_min, y_max = lawn.bottom - cutter.top + 1, lawn.top - cutter.bottom - 1
     count = (x_max - x_min + 1) * (y_max - y_min + 1)
     if count > max_positions:
-        raise ValueError(f"Grid has {count} candidate center positions; limit is {max_positions}")
+        raise UnsupportedInstanceError(f"Grid has {count} candidate center positions; limit is {max_positions}")
 
     positions = tuple((x, y) for y in range(y_min, y_max + 1) for x in range(x_min, x_max + 1))
     cells = tuple((x, y) for y in range(lawn.bottom, lawn.top) for x in range(lawn.left, lawn.right))

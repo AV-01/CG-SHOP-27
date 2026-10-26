@@ -2,18 +2,23 @@
 
 import argparse
 import json
+import sys
+from collections import Counter
 from pathlib import Path
 
 from cgshop2027_pyutils.io import read_instance
 from cgshop2027_pyutils.verify import check_for_errors
 
-from solver import solve
+from solver import UnsupportedInstanceError, solve
+
+EXAMPLES = Path(__file__).resolve().parent / "examples"
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("output", type=Path, help="Output directory")
-    parser.add_argument("--instances", type=Path, default=Path(__file__).parent / "examples",
+    parser.add_argument("output", type=Path, nargs="?", default=EXAMPLES / "solutions",
+                        help="Output directory (default: examples/solutions)")
+    parser.add_argument("--instances", type=Path, default=EXAMPLES / "instances",
                         help="One instance JSON file or a directory of *.instance.json files")
     parser.add_argument("--time-limit", type=float, default=50.0)
     parser.add_argument("--max-positions", type=int, default=20)
@@ -48,11 +53,18 @@ def main() -> int:
                 failed = True
         except (ValueError, OSError) as error:
             failed = True
-            report = {"input": str(path), "status": "REJECTED", "proved_optimal": False,
+            report = {"input": str(path), "status": ("UNSUPPORTED" if isinstance(error, UnsupportedInstanceError) else "REJECTED"),
+                      "proved_optimal": False,
                       "error": str(error)}
         reports.append(report)
         print(json.dumps(report))
     (args.output / "report.json").write_text(json.dumps(reports, indent=2) + "\n")
+    counts = Counter(report["status"] for report in reports)
+    written = sum("solution_file" in report for report in reports)
+    print(f"Generated {written}/{len(paths)} solutions. Status counts: {dict(counts)}", file=sys.stderr)
+    if counts["UNSUPPORTED"]:
+        print("UNSUPPORTED inputs exceed this oracle's rectangular one-cutter scope or size limits. "
+              "See report.json for each reason; no solution was generated for those inputs.", file=sys.stderr)
     return int(failed)
 
 

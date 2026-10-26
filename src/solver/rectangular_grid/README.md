@@ -17,13 +17,16 @@ From this directory, with Python 3.14+ and `uv`:
 
 ```sh
 uv sync --locked
-uv run main.py output_solutions
+uv run main.py
 uv run main.py output_solutions --instances /path/to/tiny.instance.json
 uv run main.py output_solutions --instances /path/to/instances --time-limit 50
 uv run pytest -q
 ```
 
-The default input is the included `examples/` directory. Dependencies are locked,
+By default, the solver reads every `*.instance.json` in `examples/instances/`
+and writes matching solutions plus `report.json` to `examples/solutions/`.
+Both defaults are relative to this script, so they work from any working directory.
+An optional output directory and `--instances` override these defaults. Dependencies are locked,
 including the competition utility revision. The runtime dependencies are OR-Tools
 and `cgshop2027-pyutils`; the development group adds pytest and the existing strip
 solver's `more-itertools` dependency for baseline comparisons.
@@ -53,7 +56,7 @@ are mostly outside this oracle's intended scope; the bundled examples are tiny.
 from cgshop2027_pyutils.io import read_instance
 from solver import solve
 
-result = solve(read_instance("examples/square.instance.json"))
+result = solve(read_instance("examples/instances/square.instance.json"))
 print(result.report())
 if result.solution is not None:
     print(result.solution.model_dump_json())
@@ -72,7 +75,9 @@ raises `ValueError`. Diagnostics are also stored in each solution's `meta`:
 | `wall_time_seconds` | Backend-reported elapsed search time |
 | `candidate_positions`, `required_cells` | Grid and coverage sizes |
 
-The CLI additionally uses REJECTED for input errors. UNKNOWN does not imply
+The CLI additionally uses UNSUPPORTED for valid instances outside its geometry
+or size limits, and REJECTED for invalid inputs or file errors. It prints a batch
+summary including how many solutions were actually generated. UNKNOWN does not imply
 infeasibility. No tour is extracted for UNKNOWN, INFEASIBLE, or MODEL_INVALID.
 A single search worker and fixed random seed improve reproducibility, although
 wall-clock timeouts can still produce different incumbents on different hosts.

@@ -191,7 +191,8 @@ def test_cli_writes_verified_solution_and_report(tmp_path):
     completed = subprocess.run(command + ["--max-positions", "1"], capture_output=True, text=True)
     assert completed.returncode == 1
     assert not (output / "tiny.solution.json").exists()
-    assert json.loads((output / "report.json").read_text())[0]["status"] == "REJECTED"
+    assert json.loads((output / "report.json").read_text())[0]["status"] == "UNSUPPORTED"
+    assert "Generated 0/1 solutions" in completed.stderr
 
 
 def test_disconnected_cycles_are_infeasible():
